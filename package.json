@@ -1,0 +1,12 @@
+{
+  "name": "mombaby",
+  "version": "1.2.1",
+  "scripts": {
+    "ios": "open ios/MomBaby/MomBaby.xcodeproj",
+    "ios:build": "xcodebuild -project ios/MomBaby/MomBaby.xcodeproj -scheme MomBaby -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build",
+    "icon": "python3 scripts/generate_app_icon.py",
+    "preview": "python3 -m http.server 4173 --directory web",
+    "check": "node --check web/app.js && npm run ios:build"
+  },
+  "private": true
+}
