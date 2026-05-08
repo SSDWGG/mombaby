@@ -12,6 +12,7 @@ struct MomBabyWebView: UIViewRepresentable {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.userContentController.add(context.coordinator, name: "momBabyNotifications")
         configuration.userContentController.add(context.coordinator, name: "momBabySpeech")
+        configuration.userContentController.add(context.coordinator, name: "momBabyExport")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         context.coordinator.webView = webView
@@ -45,6 +46,7 @@ struct MomBabyWebView: UIViewRepresentable {
         uiView.scrollView.delegate = nil
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "momBabyNotifications")
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "momBabySpeech")
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "momBabyExport")
     }
 
     func makeCoordinator() -> Coordinator {
@@ -115,6 +117,16 @@ struct MomBabyWebView: UIViewRepresentable {
                     finishSpeechRecognition(ok: true, transcript: lastTranscript, reason: "")
                 default:
                     sendSpeechResult(callbackId: callbackId, ok: false, transcript: "", reason: "unknown-action")
+                }
+                return
+            }
+
+            if message.name == "momBabyExport" {
+                switch action {
+                case "share":
+                    shareExport(from: body, callbackId: callbackId)
+                default:
+                    sendExportResult(callbackId: callbackId, ok: false, reason: "unknown-action")
                 }
             }
         }
@@ -445,6 +457,84 @@ struct MomBabyWebView: UIViewRepresentable {
             }
         }
 
+        private func shareExport(from body: [String: Any], callbackId: String?) {
+            guard let content = body["content"] as? String,
+                  !content.isEmpty,
+                  let data = content.data(using: .utf8) else {
+                sendExportResult(callbackId: callbackId, ok: false, reason: "invalid-content")
+                return
+            }
+
+            let filename = safeExportFilename((body["filename"] as? String) ?? "momBaby-backup.json")
+            let directoryURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("MomBabyExport-\(UUID().uuidString)", isDirectory: true)
+            let fileURL = directoryURL.appendingPathComponent(filename)
+
+            do {
+                try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+                try data.write(to: fileURL, options: .atomic)
+            } catch {
+                try? FileManager.default.removeItem(at: directoryURL)
+                sendExportResult(callbackId: callbackId, ok: false, reason: "write-failed")
+                return
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      let webView = self.webView,
+                      let presenter = self.presentingViewController() else {
+                    self?.sendExportResult(callbackId: callbackId, ok: false, reason: "present-failed")
+                    try? FileManager.default.removeItem(at: directoryURL)
+                    return
+                }
+
+                let activityController = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
+                activityController.completionWithItemsHandler = { [weak self] _, completed, _, error in
+                    if error != nil {
+                        self?.sendExportResult(callbackId: callbackId, ok: false, reason: "share-error")
+                    } else {
+                        self?.sendExportResult(callbackId: callbackId, ok: true, reason: completed ? "" : "cancelled")
+                    }
+
+                    DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 60) {
+                        try? FileManager.default.removeItem(at: directoryURL)
+                    }
+                }
+
+                if let popover = activityController.popoverPresentationController {
+                    popover.sourceView = webView
+                    popover.sourceRect = CGRect(x: webView.bounds.midX, y: webView.bounds.maxY - 1, width: 1, height: 1)
+                    popover.permittedArrowDirections = []
+                }
+
+                presenter.present(activityController, animated: true)
+            }
+        }
+
+        private func safeExportFilename(_ filename: String) -> String {
+            let fallback = "momBaby-backup.json"
+            let invalidCharacters = CharacterSet(charactersIn: "/\\?%*|\"<>:")
+            let cleaned = filename
+                .components(separatedBy: invalidCharacters)
+                .joined(separator: "-")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            return cleaned.isEmpty ? fallback : cleaned
+        }
+
+        private func presentingViewController() -> UIViewController? {
+            let window = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow }
+
+            var presenter = window?.rootViewController
+            while let presented = presenter?.presentedViewController {
+                presenter = presented
+            }
+            return presenter
+        }
+
         private func requestReminderAccess(completion: @escaping (Bool, String) -> Void) {
             let status = EKEventStore.authorizationStatus(for: .reminder)
 
@@ -535,6 +625,28 @@ struct MomBabyWebView: UIViewRepresentable {
             DispatchQueue.main.async { [weak self] in
                 self?.webView?.evaluateJavaScript(
                     "window.dispatchEvent(new CustomEvent('momBabyNativeSpeech', { detail: \(json) }));",
+                    completionHandler: nil
+                )
+            }
+        }
+
+        private func sendExportResult(callbackId: String?, ok: Bool, reason: String) {
+            guard let callbackId else { return }
+
+            let payload: [String: Any] = [
+                "callbackId": callbackId,
+                "ok": ok,
+                "reason": reason,
+            ]
+
+            guard let data = try? JSONSerialization.data(withJSONObject: payload),
+                  let json = String(data: data, encoding: .utf8) else {
+                return
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                self?.webView?.evaluateJavaScript(
+                    "window.dispatchEvent(new CustomEvent('momBabyNativeExport', { detail: \(json) }));",
                     completionHandler: nil
                 )
             }

@@ -93,6 +93,7 @@ const GROWTH_REFERENCES = {
 
 const nativeCallbacks = new Map();
 const speechCallbacks = new Map();
+const exportCallbacks = new Map();
 let toastTimer = 0;
 let lastTouchEndAt = 0;
 let launchPointerState = null;
@@ -157,6 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.addEventListener("change", handleChange);
   window.addEventListener("momBabyNativeNotification", handleNativeNotificationResult);
   window.addEventListener("momBabyNativeSpeech", handleNativeSpeechResult);
+  window.addEventListener("momBabyNativeExport", handleNativeExportResult);
 
   setInterval(() => {
     state.now = new Date();
@@ -737,7 +739,7 @@ function renderAmountGrid(containerId, action, activeAmount, customAction, custo
     .map((amount) => {
       const active = amount === activeAmount ? " is-active" : "";
       return `
-        <button class="amount-chip${active}" data-action="${action}" data-amount="${amount}">
+        <button class="amount-chip${active}" data-action="${action}" data-amount="${amount}" aria-pressed="${amount === activeAmount}">
           <strong>${amount}</strong>
           <span>ml</span>
         </button>
@@ -747,7 +749,7 @@ function renderAmountGrid(containerId, action, activeAmount, customAction, custo
 
   container.innerHTML = `
     ${amountButtons}
-    <button class="amount-chip amount-chip-custom${customActive ? " is-active" : ""}" data-action="${customAction}">
+    <button class="amount-chip amount-chip-custom${customActive ? " is-active" : ""}" data-action="${customAction}" aria-pressed="${customActive}">
       <strong>自定义</strong>
     </button>
   `;
@@ -762,7 +764,7 @@ function renderQuickReminderGrid() {
     .map((minutes) => {
       const active = minutes === state.quickReminderMinutes ? " is-active" : "";
       return `
-        <button class="amount-chip quick-chip${active}" data-action="set-quick-reminder" data-minutes="${minutes}">
+        <button class="amount-chip quick-chip${active}" data-action="set-quick-reminder" data-minutes="${minutes}" aria-pressed="${minutes === state.quickReminderMinutes}">
           <strong>${formatDuration(minutes)}</strong>
         </button>
       `;
@@ -771,7 +773,7 @@ function renderQuickReminderGrid() {
 
   container.innerHTML = `
     ${optionButtons}
-    <button class="amount-chip quick-chip amount-chip-custom${customActive ? " is-active" : ""}" data-action="show-custom-quick-reminder">
+    <button class="amount-chip quick-chip amount-chip-custom${customActive ? " is-active" : ""}" data-action="show-custom-quick-reminder" aria-pressed="${customActive}">
       <strong>自定义</strong>
     </button>
   `;
@@ -2871,6 +2873,36 @@ function sendNativeNotification(payload) {
   });
 }
 
+function sendNativeExport(payload) {
+  if (!hasNativeExportBridge()) {
+    return Promise.resolve({ ok: false, reason: "unsupported" });
+  }
+
+  return new Promise((resolve) => {
+    const callbackId = makeId();
+    const timer = window.setTimeout(() => {
+      exportCallbacks.delete(callbackId);
+      resolve({ ok: false, reason: "timeout" });
+    }, 5 * 60 * 1000);
+
+    exportCallbacks.set(callbackId, (result) => {
+      window.clearTimeout(timer);
+      resolve(result);
+    });
+
+    try {
+      window.webkit.messageHandlers.momBabyExport.postMessage({
+        ...payload,
+        callbackId,
+      });
+    } catch {
+      window.clearTimeout(timer);
+      exportCallbacks.delete(callbackId);
+      resolve({ ok: false, reason: "post-failed" });
+    }
+  });
+}
+
 function handleNativeNotificationResult(event) {
   const detail = event.detail || {};
   const callback = nativeCallbacks.get(detail.callbackId);
@@ -2895,12 +2927,27 @@ function handleNativeSpeechResult(event) {
   });
 }
 
+function handleNativeExportResult(event) {
+  const detail = event.detail || {};
+  const callback = exportCallbacks.get(detail.callbackId);
+  if (!callback) return;
+  exportCallbacks.delete(detail.callbackId);
+  callback({
+    ok: Boolean(detail.ok),
+    reason: detail.reason || "",
+  });
+}
+
 function hasNativeBridge() {
   return Boolean(window.webkit?.messageHandlers?.momBabyNotifications);
 }
 
 function hasNativeSpeechBridge() {
   return Boolean(window.webkit?.messageHandlers?.momBabySpeech);
+}
+
+function hasNativeExportBridge() {
+  return Boolean(window.webkit?.messageHandlers?.momBabyExport);
 }
 
 function getSpeechErrorMessage(reason) {
@@ -3513,6 +3560,70 @@ function triggerFileDownload(blob, filename) {
   }, 1000);
 }
 
+async function shareOrDownloadExport(json, blob, filename) {
+  if (hasNativeExportBridge()) {
+    const result = await sendNativeExport({
+      action: "share",
+      filename,
+      content: json,
+    });
+
+    if (!result.ok && result.reason !== "cancelled") {
+      throw new Error(getExportErrorMessage(result.reason));
+    }
+
+    return { method: "native", cancelled: result.reason === "cancelled" };
+  }
+
+  const shareResult = await shareExportFile(blob, filename);
+  if (shareResult.available) {
+    return shareResult;
+  }
+
+  triggerFileDownload(blob, filename);
+  return { method: "download", cancelled: false };
+}
+
+async function shareExportFile(blob, filename) {
+  if (typeof File !== "function" || !navigator.share) {
+    return { available: false };
+  }
+
+  const file = new File([blob], filename, { type: "application/json" });
+  const shareData = {
+    title: "沐奶时光数据备份",
+    text: "沐奶时光数据备份文件",
+    files: [file],
+  };
+
+  try {
+    if (!navigator.canShare || !navigator.canShare(shareData)) {
+      return { available: false };
+    }
+  } catch {
+    return { available: false };
+  }
+
+  try {
+    await navigator.share(shareData);
+    return { available: true, method: "share", cancelled: false };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return { available: true, method: "share", cancelled: true };
+    }
+    throw error;
+  }
+}
+
+function getExportErrorMessage(reason) {
+  if (reason === "timeout") return "导出分享超时";
+  if (reason === "invalid-content") return "导出内容无效";
+  if (reason === "write-failed") return "备份文件创建失败";
+  if (reason === "present-failed") return "无法打开系统分享面板";
+  if (reason === "share-error") return "系统分享失败";
+  return "系统分享不可用";
+}
+
 async function exportData() {
   try {
     const profile = loadProfile();
@@ -3553,8 +3664,8 @@ async function exportData() {
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const filename = "momBaby-backup-" + dateKey(new Date()) + ".json";
-    triggerFileDownload(blob, filename);
-    showToast("数据导出成功");
+    const result = await shareOrDownloadExport(json, blob, filename);
+    showToast(result.cancelled ? "已取消导出" : "数据导出成功");
   } catch (error) {
     showToast("导出失败: " + error.message);
   }
