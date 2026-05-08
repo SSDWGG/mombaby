@@ -472,9 +472,11 @@ function handleChange(event) {
   }
 
   if (action === "import-data-file") {
-    if (field.files?.[0]) {
-      importData(field.files[0]);
-      field.value = "";
+    const file = field.files?.[0];
+    if (file) {
+      importData(file).finally(() => {
+        field.value = "";
+      });
     }
     return;
   }
@@ -913,11 +915,11 @@ function renderHistoryChart() {
   const maxTotal = Math.max(targetMl || 0, ...days.map((day) => day.total));
 
   const width = 360;
-  const height = 210;
-  const left = 40;
-  const right = 18;
-  const top = 16;
-  const bottom = 32;
+  const height = 224;
+  const left = 48;
+  const right = 22;
+  const top = 28;
+  const bottom = 40;
   const chartWidth = width - left - right;
   const chartHeight = height - top - bottom;
 
@@ -1004,8 +1006,8 @@ function renderHistoryChart() {
             <g class="chart-day${active}" data-action="select-history-day" data-date="${point.key}">
               <rect class="chart-hit" x="${hitX}" y="0" width="${hitWidth}" height="${height}"></rect>
               <circle class="${dotClass}${active}" cx="${point.x}" cy="${point.y}" r="${active ? 5 : 4}"></circle>
-              <text class="chart-total" x="${point.x}" y="${Math.max(14, point.y - 10)}">${point.hasData ? point.total : ""}</text>
-              <text class="chart-label" x="${point.x}" y="${height - 10}">${formatChartDayLabel(point.key)}</text>
+              <text class="chart-total" x="${point.x}" y="${Math.max(20, point.y - 12)}">${point.hasData ? point.total : ""}</text>
+              <text class="chart-label" x="${point.x}" y="${height - 14}">${formatChartDayLabel(point.key)}</text>
             </g>
           `;
         })
@@ -2686,6 +2688,7 @@ function installLaunchGestures() {
       startY: event.clientY,
       deltaX: 0,
       deltaY: 0,
+      axis: "",
       moved: false,
     };
     carousel.classList.add("is-dragging");
@@ -2701,13 +2704,23 @@ function installLaunchGestures() {
     launchPointerState.deltaY = deltaY;
     launchPointerState.moved = true;
 
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    if (!launchPointerState.axis && Math.max(absX, absY) > 8) {
+      launchPointerState.axis = absX >= absY ? "x" : "y";
+    }
+
     const track = document.getElementById("launchTrack");
     if (track) {
       const baseOffset = state.launchStepIndex * 100;
-      const carouselWidth = carousel.getBoundingClientRect().width;
-      const dragRatio = carouselWidth > 0 ? (deltaX / carouselWidth) * 100 : 0;
       track.style.transition = "none";
-      track.style.transform = `translateX(-${baseOffset - dragRatio}%)`;
+      if (launchPointerState.axis === "x") {
+        const carouselWidth = carousel.getBoundingClientRect().width;
+        const dragRatio = carouselWidth > 0 ? (deltaX / carouselWidth) * 100 : 0;
+        track.style.transform = `translateX(-${baseOffset - dragRatio}%)`;
+      } else {
+        track.style.transform = `translateX(-${baseOffset}%)`;
+      }
     }
   });
 
@@ -2734,6 +2747,16 @@ function installLaunchGestures() {
       event.preventDefault();
       stepLaunchScreen(1);
     }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      stepLaunchScreen(-1);
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      stepLaunchScreen(1);
+    }
   });
 }
 
@@ -2753,21 +2776,12 @@ function finishLaunchGesture(event, carousel) {
 
   const absX = Math.abs(deltaX);
   const absY = Math.abs(deltaY);
-  const isLastSlide = state.launchStepIndex === launchSteps.length - 1;
 
-  // Vertical swipe up on last slide: enter the app
-  if (isLastSlide && deltaY < -56 && absY > absX * 1.2) {
-    finishLaunchScreen(!state.launchPreviewMode);
+  if (absY >= 46 && absY > absX * 1.2) {
+    stepLaunchScreen(deltaY < 0 ? 1 : -1);
     return;
   }
 
-  // Vertical swipe down on any slide: dismiss
-  if (deltaY > 56 && absY > absX * 1.2) {
-    state.launchPreviewMode ? closeLaunchScreen(false) : finishLaunchScreen(!state.launchPreviewMode);
-    return;
-  }
-
-  // Horizontal swipe
   if (absX >= 46 && absX > absY * 1.25) {
     stepLaunchScreen(deltaX < 0 ? 1 : -1);
   }
@@ -3624,6 +3638,65 @@ function getExportErrorMessage(reason) {
   return "系统分享不可用";
 }
 
+function confirmImportData(summary) {
+  return new Promise((resolve) => {
+    const layer = document.createElement("section");
+    layer.className = "confirm-layer";
+    layer.tabIndex = -1;
+    layer.setAttribute("role", "dialog");
+    layer.setAttribute("aria-modal", "true");
+    layer.setAttribute("aria-label", "确认导入数据");
+    layer.innerHTML = `
+      <button class="confirm-backdrop" data-confirm="cancel" aria-label="取消导入"></button>
+      <div class="confirm-dialog">
+        <div>
+          <p class="confirm-kicker">数据导入</p>
+          <h2>覆盖当前数据？</h2>
+        </div>
+        <p>${summary}</p>
+        <div class="confirm-actions">
+          <button class="ghost-button" data-confirm="cancel">取消</button>
+          <button class="primary-button" data-confirm="confirm">确认导入</button>
+        </div>
+      </div>
+    `;
+
+    const cleanup = (result) => {
+      layer.remove();
+      resolve(result);
+    };
+
+    layer.addEventListener("click", (event) => {
+      const control = event.target.closest("[data-confirm]");
+      if (!control) return;
+      cleanup(control.dataset.confirm === "confirm");
+    });
+
+    layer.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cleanup(false);
+      }
+    });
+
+    document.body.appendChild(layer);
+    layer.focus();
+    layer.querySelector("[data-confirm='confirm']")?.focus();
+  });
+}
+
+function getImportSummary(parsed) {
+  const data = parsed.data || {};
+  const records = Array.isArray(data[STORAGE_KEYS.records]) ? data[STORAGE_KEYS.records].length : 0;
+  const reminders = Array.isArray(data[STORAGE_KEYS.reminders]) ? data[STORAGE_KEYS.reminders].length : 0;
+  const exportedAt = parsed.exportedAt ? new Date(parsed.exportedAt) : undefined;
+  const exportedLabel = exportedAt && !Number.isNaN(exportedAt.getTime())
+    ? `，备份时间 ${formatShortDateTime(exportedAt, state.now)}`
+    : "";
+
+  return `将导入 ${records} 条喂奶记录、${reminders} 个提醒${exportedLabel}，并覆盖当前记录、提醒、宝贝信息和设置。`;
+}
+
 async function exportData() {
   try {
     const profile = loadProfile();
@@ -3673,6 +3746,7 @@ async function exportData() {
 
 async function importData(file) {
   try {
+    showToast("正在读取备份...");
     const text = await file.text();
     const parsed = JSON.parse(text);
     const errors = validateImportData(parsed);
@@ -3681,7 +3755,13 @@ async function importData(file) {
       return;
     }
 
-    if (!window.confirm("导入数据将覆盖当前所有记录、提醒和设置。\n继续吗？")) return;
+    const confirmed = await confirmImportData(getImportSummary(parsed));
+    if (!confirmed) {
+      showToast("已取消导入");
+      return;
+    }
+
+    showToast("正在导入备份...");
 
     const { data } = parsed;
 

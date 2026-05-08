@@ -82,8 +82,13 @@ html,
 body {
   min-height: 100%;
   touch-action: manipulation;
+  overscroll-behavior: none;
   scrollbar-width: none;
   -webkit-text-size-adjust: 100%;
+}
+
+html {
+  background: var(--bg);
 }
 
 * {
@@ -101,6 +106,7 @@ body {
   background:
     linear-gradient(135deg, var(--body-stop-1) 0%, var(--body-stop-2) 34%, var(--body-stop-3) 100%),
     linear-gradient(180deg, var(--bg) 0%, var(--body-solid-2) 58%, var(--body-solid-3) 100%);
+  background-color: var(--bg);
   color: var(--ink);
   font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
@@ -1204,8 +1210,8 @@ h2 {
 
 .chart-grid-label {
   fill: rgba(138, 126, 134, 0.45);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1217,8 +1223,8 @@ h2 {
 
 .chart-target-label {
   fill: rgba(78, 157, 138, 0.55);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .chart-area {
@@ -1228,7 +1234,7 @@ h2 {
 .chart-line {
   fill: none;
   stroke: var(--coral-deep);
-  stroke-width: 2.2;
+  stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1236,32 +1242,32 @@ h2 {
 .chart-dot {
   fill: #fff;
   stroke: var(--coral-deep);
-  stroke-width: 2;
+  stroke-width: 1.6;
 }
 
 .chart-dot.is-active {
   fill: var(--coral-deep);
   stroke: #fff;
-  stroke-width: 2.2;
+  stroke-width: 1.8;
 }
 
 .chart-dot-muted {
   fill: rgba(138, 126, 134, 0.35);
   stroke: rgba(138, 126, 134, 0.2);
-  stroke-width: 1.2;
+  stroke-width: 1;
 }
 
 .chart-total {
   fill: var(--coral-deep);
-  font-size: 10px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 650;
   text-anchor: middle;
 }
 
 .chart-label {
   fill: var(--muted);
-  font-size: 10px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 600;
   text-anchor: middle;
 }
 
@@ -1989,6 +1995,69 @@ h2 {
   opacity: 0.58;
 }
 
+.confirm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 86;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  outline: 0;
+}
+
+.confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(75, 69, 82, 0.22);
+}
+
+.confirm-dialog {
+  position: relative;
+  width: min(100%, 372px);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.68)),
+    var(--glass-strong);
+  box-shadow: var(--inner-glow), 0 22px 54px rgba(75, 69, 82, 0.18);
+  -webkit-backdrop-filter: blur(26px) saturate(1.2);
+  backdrop-filter: blur(26px) saturate(1.2);
+}
+
+.confirm-kicker {
+  margin-bottom: 3px;
+  color: var(--coral-deep);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.confirm-dialog p:not(.confirm-kicker) {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 20px;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.confirm-actions .primary-button {
+  min-height: 44px;
+  margin-top: 0;
+}
+
+.confirm-actions .ghost-button {
+  justify-content: center;
+}
+
 .modal-layer {
   position: fixed;
   inset: 0;
@@ -2275,7 +2344,7 @@ h2 {
   overflow: hidden;
   border-radius: var(--radius);
   outline: 0;
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .launch-carousel:focus-visible {
@@ -2533,6 +2602,18 @@ h2 {
 
 [data-theme="dark"] .profile-sheet,
 [data-theme="dark"] .voice-menu {
+  border-color: rgba(80, 70, 62, 0.56);
+  background:
+    linear-gradient(145deg, rgba(42, 36, 32, 0.94), rgba(30, 26, 24, 0.84)),
+    var(--surface);
+  box-shadow: var(--inner-glow), 0 22px 54px rgba(0, 0, 0, 0.34);
+}
+
+[data-theme="dark"] .confirm-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .confirm-dialog {
   border-color: rgba(80, 70, 62, 0.56);
   background:
     linear-gradient(145deg, rgba(42, 36, 32, 0.94), rgba(30, 26, 24, 0.84)),

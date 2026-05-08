@@ -22,7 +22,9 @@ struct MomBabyWebView: UIViewRepresentable {
         webView.backgroundColor = UIColor(red: 1.0, green: 0.973, blue: 0.957, alpha: 1)
         webView.isOpaque = false
         webView.scrollView.backgroundColor = .clear
-        webView.scrollView.bounces = true
+        webView.scrollView.bounces = false
+        webView.scrollView.alwaysBounceVertical = false
+        webView.scrollView.alwaysBounceHorizontal = false
         webView.scrollView.bouncesZoom = false
         webView.scrollView.showsVerticalScrollIndicator = false
         webView.scrollView.showsHorizontalScrollIndicator = false
