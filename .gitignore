@@ -11,3 +11,5 @@ build/
 *.moved-aside
 __pycache__/
 *.pyc
+.claude/
+.playwright-mcp/
