@@ -30,6 +30,8 @@
 	<string>用于在你开启后，把喂奶提醒写入 iOS 提醒事项 App。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>用于识别语音内容并转换为喂奶记录或提醒。</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

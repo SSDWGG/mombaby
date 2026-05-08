@@ -3,6 +3,7 @@ const STORAGE_KEYS = {
   reminders: "momBaby.feedingReminders.v1",
   soundEnabled: "momBaby.reminderSoundEnabled.v1",
   reminderAppEnabled: "momBaby.reminderAppEnabled.v1",
+  liveActivityEnabled: "momBaby.liveActivityEnabled.v1",
   babyProfile: "momBaby.babyProfile.v1",
   launchSeen: "momBaby.launchSeen.v1",
   cardOpacity: "momBaby.cardOpacity.v1",
@@ -94,9 +95,17 @@ const GROWTH_REFERENCES = {
 const nativeCallbacks = new Map();
 const speechCallbacks = new Map();
 const exportCallbacks = new Map();
+const widgetPraises = [
+  "宝贝今天也闪闪发光",
+  "宝贝被爱稳稳包围着",
+  "宝贝每一天都在认真长大",
+  "宝贝的节奏值得温柔守护",
+  "宝贝今天也超级棒",
+];
 let toastTimer = 0;
 let lastTouchEndAt = 0;
 let launchPointerState = null;
+let lastWidgetSnapshot = "";
 
 const state = {
   activeTab: "feed",
@@ -112,6 +121,7 @@ const state = {
   reminderAmountMl: 120,
   soundEnabled: loadBool(STORAGE_KEYS.soundEnabled, true),
   reminderAppEnabled: loadBool(STORAGE_KEYS.reminderAppEnabled, false),
+  liveActivityEnabled: loadBool(STORAGE_KEYS.liveActivityEnabled, false),
   quickReminderEnabled: false,
   quickReminderMinutes: 180,
   selectedHistoryDate: dateKey(new Date()),
@@ -501,6 +511,14 @@ function handleChange(event) {
     return;
   }
 
+  if (action === "set-live-activity-enabled") {
+    state.liveActivityEnabled = Boolean(field.checked);
+    saveBool(STORAGE_KEYS.liveActivityEnabled, state.liveActivityEnabled);
+    showToast(state.liveActivityEnabled ? "已开启灵动岛与锁屏提醒" : "已关闭灵动岛与锁屏提醒");
+    render();
+    return;
+  }
+
   if (action === "set-quick-reminder-enabled") {
     state.quickReminderEnabled = Boolean(field.checked);
     if (!state.quickReminderEnabled) {
@@ -526,6 +544,7 @@ function render() {
   setText("lastRecord", lastRecord ? formatClock(new Date(lastRecord.at)) : "--:--");
   setText("averageAmount", averageAmount ? `${averageAmount} ml` : "--");
   setText("nextReminder", nextReminder ? formatShortReminder(nextReminder, state.now) : "--");
+  syncWidgetState(nextReminder);
   document.getElementById("dailyProgress").style.width = `${Math.min(100, (todayTotal / dailyTargetMl) * 100)}%`;
   setText("todayTargetHint", getTodayTargetHint(todayTotal, dailyTargetMl));
 
@@ -722,6 +741,8 @@ function renderReminderControls() {
   setText("soundEnabledText", state.soundEnabled ? "开启" : "关闭");
   setChecked("reminderAppEnabledInput", state.reminderAppEnabled);
   setText("reminderAppEnabledText", state.reminderAppEnabled ? "开启，到点生成任务" : "关闭");
+  setChecked("liveActivityEnabledInput", state.liveActivityEnabled);
+  setText("liveActivityEnabledText", state.liveActivityEnabled ? "开启，显示实时倒计时" : "关闭");
   toggleCustomControl("fixedTimeCustom", state.customVisible.fixedTime);
   toggleCustomControl("countdownCustom", state.customVisible.countdown);
   toggleCustomControl("reminderAmountCustom", state.customVisible.reminderAmount);
@@ -2964,6 +2985,52 @@ function hasNativeExportBridge() {
   return Boolean(window.webkit?.messageHandlers?.momBabyExport);
 }
 
+function hasNativeWidgetBridge() {
+  return Boolean(window.webkit?.messageHandlers?.momBabyWidget);
+}
+
+function syncWidgetState(nextReminder) {
+  if (!hasNativeWidgetBridge()) return;
+
+  const nextDate = nextReminder ? getReminderNextDate(nextReminder, state.now) : undefined;
+  const payload = {
+    action: "sync",
+    hasReminder: Boolean(nextDate),
+    nextAt: nextDate ? nextDate.toISOString() : "",
+    mode: nextReminder?.mode || "",
+    amountMl: nextReminder?.amountMl || 0,
+    babyName: state.babyProfile.name || "宝贝",
+    praise: getWidgetPraise(),
+    fixedHour: nextReminder?.fixedTime?.hour ?? null,
+    fixedMinute: nextReminder?.fixedTime?.minute ?? null,
+    liveActivityEnabled: state.liveActivityEnabled,
+  };
+  const signature = JSON.stringify(payload);
+
+  if (signature === lastWidgetSnapshot) return;
+
+  try {
+    window.webkit.messageHandlers.momBabyWidget.postMessage(payload);
+    lastWidgetSnapshot = signature;
+  } catch {
+    lastWidgetSnapshot = "";
+  }
+}
+
+function getWidgetPraise() {
+  const name = state.babyProfile.name?.trim() || "宝贝";
+  const index = Math.abs(hashString(`${dateKey(state.now)}:${name}`)) % widgetPraises.length;
+  return `${name}，${widgetPraises[index].replace(/^宝贝/, "")}`;
+}
+
+function hashString(value) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index++) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+  return hash;
+}
+
 function getSpeechErrorMessage(reason) {
   if (reason === "denied") return "语音权限未开启";
   if (reason === "microphone-denied") return "麦克风权限未开启";
@@ -3712,6 +3779,7 @@ async function exportData() {
         [STORAGE_KEYS.reminders]: loadArray(STORAGE_KEYS.reminders),
         [STORAGE_KEYS.soundEnabled]: localStorage.getItem(STORAGE_KEYS.soundEnabled) ?? "true",
         [STORAGE_KEYS.reminderAppEnabled]: localStorage.getItem(STORAGE_KEYS.reminderAppEnabled) ?? "false",
+        [STORAGE_KEYS.liveActivityEnabled]: localStorage.getItem(STORAGE_KEYS.liveActivityEnabled) ?? "false",
         [STORAGE_KEYS.babyProfile]: exportProfile,
         [STORAGE_KEYS.cardOpacity]: localStorage.getItem(STORAGE_KEYS.cardOpacity) ?? "42",
         [STORAGE_KEYS.theme]: localStorage.getItem(STORAGE_KEYS.theme) ?? "system",
@@ -3777,6 +3845,9 @@ async function importData(file) {
     if (data[STORAGE_KEYS.reminderAppEnabled] !== undefined) {
       localStorage.setItem(STORAGE_KEYS.reminderAppEnabled, data[STORAGE_KEYS.reminderAppEnabled]);
     }
+    if (data[STORAGE_KEYS.liveActivityEnabled] !== undefined) {
+      localStorage.setItem(STORAGE_KEYS.liveActivityEnabled, data[STORAGE_KEYS.liveActivityEnabled]);
+    }
     if (data[STORAGE_KEYS.babyProfile] !== undefined) {
       localStorage.setItem(STORAGE_KEYS.babyProfile, JSON.stringify(data[STORAGE_KEYS.babyProfile]));
     }
@@ -3809,6 +3880,7 @@ async function importData(file) {
     state.reminders = loadArray(STORAGE_KEYS.reminders);
     state.soundEnabled = loadBool(STORAGE_KEYS.soundEnabled, true);
     state.reminderAppEnabled = loadBool(STORAGE_KEYS.reminderAppEnabled, false);
+    state.liveActivityEnabled = loadBool(STORAGE_KEYS.liveActivityEnabled, false);
     state.babyProfile = loadProfile();
     state.cardOpacity = loadNumber(STORAGE_KEYS.cardOpacity, cardOpacityRange.defaultValue, cardOpacityRange.min, cardOpacityRange.max);
     state.theme = loadTheme();

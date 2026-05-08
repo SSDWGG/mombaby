@@ -1,10 +1,12 @@
 import SwiftUI
+import ActivityKit
 import AVFoundation
 import EventKit
 import Speech
 import UIKit
 import UserNotifications
 import WebKit
+import WidgetKit
 
 struct MomBabyWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
@@ -13,6 +15,7 @@ struct MomBabyWebView: UIViewRepresentable {
         configuration.userContentController.add(context.coordinator, name: "momBabyNotifications")
         configuration.userContentController.add(context.coordinator, name: "momBabySpeech")
         configuration.userContentController.add(context.coordinator, name: "momBabyExport")
+        configuration.userContentController.add(context.coordinator, name: "momBabyWidget")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         context.coordinator.webView = webView
@@ -49,6 +52,7 @@ struct MomBabyWebView: UIViewRepresentable {
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "momBabyNotifications")
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "momBabySpeech")
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "momBabyExport")
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "momBabyWidget")
     }
 
     func makeCoordinator() -> Coordinator {
@@ -129,6 +133,16 @@ struct MomBabyWebView: UIViewRepresentable {
                     shareExport(from: body, callbackId: callbackId)
                 default:
                     sendExportResult(callbackId: callbackId, ok: false, reason: "unknown-action")
+                }
+                return
+            }
+
+            if message.name == "momBabyWidget" {
+                switch action {
+                case "sync":
+                    syncWidgetSnapshot(from: body)
+                default:
+                    break
                 }
             }
         }
@@ -392,6 +406,61 @@ struct MomBabyWebView: UIViewRepresentable {
             removeReminderTask(identifier: reminderAppId) { [weak self] in
                 self?.sendResult(callbackId: callbackId, ok: true, reason: "")
             }
+        }
+
+        private func syncWidgetSnapshot(from body: [String: Any]) {
+            let liveActivityEnabled = boolValue(body["liveActivityEnabled"], default: false)
+            let snapshot = MomBabyFeedingSnapshot(
+                hasReminder: boolValue(body["hasReminder"], default: false),
+                nextAt: dateValue(body["nextAt"]),
+                mode: (body["mode"] as? String) ?? "",
+                amountMl: intValue(body["amountMl"], default: 0),
+                babyName: (body["babyName"] as? String) ?? "宝贝",
+                praise: (body["praise"] as? String) ?? "宝贝今天也闪闪发光",
+                fixedHour: optionalIntValue(body["fixedHour"]),
+                fixedMinute: optionalIntValue(body["fixedMinute"]),
+                updatedAt: Date()
+            )
+
+            MomBabySharedStore.saveSnapshot(snapshot)
+            WidgetCenter.shared.reloadAllTimelines()
+
+            if #available(iOS 16.2, *) {
+                Task { await self.updateFeedingActivity(with: snapshot, liveActivityEnabled: liveActivityEnabled) }
+            }
+        }
+
+        @available(iOS 16.2, *)
+        private func updateFeedingActivity(with snapshot: MomBabyFeedingSnapshot, liveActivityEnabled: Bool) async {
+            let content = ActivityContent(
+                state: MomBabyFeedingAttributes.ContentState(snapshot: snapshot),
+                staleDate: snapshot.effectiveNextDate()?.addingTimeInterval(60) ?? Date().addingTimeInterval(60 * 60)
+            )
+            let activities = Activity<MomBabyFeedingAttributes>.activities
+
+            guard liveActivityEnabled else {
+                for activity in activities {
+                    await activity.end(content, dismissalPolicy: .immediate)
+                }
+                return
+            }
+
+            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+            if let firstActivity = activities.first {
+                await firstActivity.update(content)
+
+                for activity in activities.dropFirst() {
+                    await activity.end(content, dismissalPolicy: .immediate)
+                }
+                return
+            }
+
+            try? Activity.request(
+                attributes: MomBabyFeedingAttributes(),
+                content: content,
+                pushType: nil
+            )
         }
 
         private func scheduleReminderTask(
@@ -684,6 +753,40 @@ struct MomBabyWebView: UIViewRepresentable {
             }
 
             return defaultValue
+        }
+
+        private func optionalIntValue(_ value: Any?) -> Int? {
+            if value is NSNull {
+                return nil
+            }
+
+            if let value = value as? Int {
+                return value
+            }
+
+            if let value = value as? NSNumber {
+                return value.intValue
+            }
+
+            if let value = value as? String, let integer = Int(value) {
+                return integer
+            }
+
+            return nil
+        }
+
+        private func dateValue(_ value: Any?) -> Date? {
+            guard let string = value as? String, !string.isEmpty else {
+                return nil
+            }
+
+            let fractionalFormatter = ISO8601DateFormatter()
+            fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fractionalFormatter.date(from: string) {
+                return date
+            }
+
+            return ISO8601DateFormatter().date(from: string)
         }
 
         private func clamp(_ value: Int, min: Int, max: Int) -> Int {
