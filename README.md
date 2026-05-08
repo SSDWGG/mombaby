@@ -2,11 +2,13 @@
 
 一个本地运行的 iOS 母婴喂奶记录 App。当前项目只保留一套 App 方案：SwiftUI 原生壳 + `WKWebView` 加载 App 内置的 `web/` 页面资源，不依赖 Expo development server。
 
+> 🌐 **项目介绍页**：[ssdwgg.github.io/mombaby](https://ssdwgg.github.io/mombaby/)
+
 ## 当前版本
 
 - iOS 工程：`ios/MomBaby/MomBaby.xcodeproj`
 - App 页面：`web/index.html`、`web/styles.css`、`web/app.js`
-- App 图标：`assets/icon.png`，并同步生成到 `ios/MomBaby/MomBaby/Assets.xcassets/AppIcon.appiconset`
+- App 图标：`assets/mnsg.png`，并同步生成到 `web/` 和 `ios/MomBaby/MomBaby/Assets.xcassets/AppIcon.appiconset`
 
 ## 功能
 
