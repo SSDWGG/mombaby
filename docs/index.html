@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fff8f4">
+<meta name="description" content="沐奶时光 — 一款专为新手父母打造的 iOS 母婴喂奶记录 App，轻松追踪每次喂奶的时间和奶量。">
+<title>沐奶时光 — 母婴喂奶记录 App</title>
+<style>
+  :root {
+    --bg: #fff8f4;
+    --surface: #ffffff;
+    --ink: #4b4552;
+    --muted: #8a7e86;
+    --hairline: #f0d9d0;
+    --coral: #f6afa0;
+    --coral-deep: #d96d5f;
+    --mint: #ddf4ec;
+    --mint-deep: #4e9d8a;
+    --butter: #ffe6a7;
+    --radius: 16px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .hero {
+    text-align: center;
+    padding: 80px 24px 60px;
+    background: linear-gradient(180deg, #FFF8F4 0%, #FFF0EA 60%, var(--bg) 100%);
+  }
+
+  .hero-icon {
+    width: 120px;
+    height: 120px;
+    border-radius: 28px;
+    box-shadow: 0 8px 32px rgba(143, 98, 88, 0.18);
+    margin-bottom: 28px;
+  }
+
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--coral-deep);
+    margin-bottom: 8px;
+  }
+
+  .hero .subtitle {
+    font-size: 18px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .hero .tagline {
+    display: inline-block;
+    background: var(--mint);
+    color: var(--mint-deep);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 20px;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .section {
+    padding: 56px 0;
+  }
+
+  .section-title {
+    text-align: center;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+
+  .section-desc {
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 40px;
+    font-size: 16px;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    box-shadow: 0 2px 12px rgba(143, 98, 88, 0.06);
+    border: 1px solid var(--hairline);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(143, 98, 88, 0.10);
+  }
+
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+
+  .feature-card h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .feature-card p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .coral-bg { background: #FFF0EA; color: var(--coral-deep); }
+  .mint-bg { background: var(--mint); color: var(--mint-deep); }
+  .butter-bg { background: #FFF8E0; color: #b8860b; }
+  .lavender-bg { background: #F0EBFA; color: #6b5ca0; }
+  .rose-bg { background: #FDEAEF; color: #c96d82; }
+  .sky-bg { background: #E4F0FA; color: #5a8ab5; }
+
+  .install {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--hairline);
+    padding: 36px 32px;
+    text-align: center;
+    max-width: 520px;
+    margin: 0 auto;
+    box-shadow: 0 2px 12px rgba(143, 98, 88, 0.06);
+  }
+
+  .install h3 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .install p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .install ol {
+    text-align: left;
+    display: inline-block;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 2;
+    padding-left: 20px;
+  }
+
+  .install ol li::marker {
+    color: var(--coral-deep);
+    font-weight: 600;
+  }
+
+  .github-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 10px 24px;
+    background: var(--ink);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+  }
+
+  .github-link:hover { opacity: 0.85; }
+
+  .github-link svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--hairline);
+    margin-top: 40px;
+  }
+
+  .footer a {
+    color: var(--coral-deep);
+    text-decoration: none;
+  }
+
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    .hero {
+      padding: 48px 20px 40px;
+    }
+    .hero h1 {
+      font-size: 28px;
+    }
+    .hero-icon {
+      width: 96px;
+      height: 96px;
+      border-radius: 22px;
+    }
+    .section {
+      padding: 36px 0;
+    }
+    .features {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <img class="hero-icon" src="app-icon.png" alt="沐奶时光图标">
+  <h1>沐奶时光</h1>
+  <p class="subtitle">母婴喂奶记录 App</p>
+  <span class="tagline">iOS 原生体验 · 本地数据 · 无广告</span>
+</header>
+
+<main class="container">
+
+  <section class="section">
+    <h2 class="section-title">核心功能</h2>
+    <p class="section-desc">一切围绕新生儿喂养场景设计，简单、清晰、贴心</p>
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon coral-bg">🍼</div>
+        <h3>喂奶记录</h3>
+        <p>记录每天每次喂奶的时间和奶量，自动汇总总奶量、次数和平均奶量。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon mint-bg">🔔</div>
+        <h3>定点提醒</h3>
+        <p>设定每日固定时间提醒，包含建议奶量，可同步写入 iOS 系统提醒事项。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon butter-bg">⏱</div>
+        <h3>倒计时喂奶</h3>
+        <p>单次倒计时模式，灵活应对不规律的喂奶间隔，到点自动提醒。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon lavender-bg">📊</div>
+        <h3>时间线视图</h3>
+        <p>按天浏览喂奶历史记录，直观查看喂养规律和趋势变化。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon rose-bg">📖</div>
+        <h3>月龄参考指南</h3>
+        <p>0-30 月龄身高体重参考、喂养奶量建议、行为表现和养育经验。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon sky-bg">🔒</div>
+        <h3>隐私优先</h3>
+        <p>所有数据存储在手机本地，无需网络权限，不上传任何个人信息。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">安装方式</h2>
+    <p class="section-desc">目前仅支持通过 Xcode 侧载安装到 iPhone</p>
+    <div class="install">
+      <h3>📲 通过 Xcode 安装</h3>
+      <ol>
+        <li>克隆仓库到 Mac</li>
+        <li>运行 <code>npm run ios</code> 打开 Xcode 工程</li>
+        <li>在 Signing &amp; Capabilities 中选择个人开发团队</li>
+        <li>连接 iPhone 后点击 Run</li>
+      </ol>
+      <a class="github-link" href="https://github.com/SSDWGG/mombaby" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub 仓库
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>沐奶时光 · 用爱记录每一口</p>
+  <p style="margin-top:4px;"><a href="https://github.com/SSDWGG/mombaby">SSDWGG/mombaby</a></p>
+</footer>
+
+</body>
+</html>
