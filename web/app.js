@@ -191,6 +191,16 @@ function handleClick(event) {
     return;
   }
 
+  if (action === "export-data") {
+    exportData();
+    return;
+  }
+
+  if (action === "import-data") {
+    document.getElementById("importFileInput").click();
+    return;
+  }
+
   if (action === "set-theme") {
     const theme = button.dataset.theme;
     if (theme) {
@@ -456,6 +466,14 @@ function handleChange(event) {
   if (action === "set-baby-media") {
     handleBabyMediaFile(field.files?.[0]);
     field.value = "";
+    return;
+  }
+
+  if (action === "import-data-file") {
+    if (field.files?.[0]) {
+      importData(field.files[0]);
+      field.value = "";
+    }
     return;
   }
 
@@ -3425,4 +3443,191 @@ function pad(value) {
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// --- Data export/import ---
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function validateImportData(parsed) {
+  const errors = [];
+  if (!parsed || typeof parsed !== "object") {
+    errors.push("无效的导入文件格式");
+    return errors;
+  }
+  if (parsed.version !== 1) {
+    errors.push("不支持的数据版本: " + (parsed.version ?? "未知"));
+    return errors;
+  }
+  if (!parsed.data || typeof parsed.data !== "object") {
+    errors.push("导入文件中缺少数据内容");
+    return errors;
+  }
+  const records = parsed.data[STORAGE_KEYS.records];
+  if (records !== undefined) {
+    if (!Array.isArray(records)) {
+      errors.push("喂奶记录格式错误");
+    } else {
+      for (const record of records) {
+        if (!record.id || !record.amountMl || !record.at) {
+          errors.push("存在无效的喂奶记录");
+          break;
+        }
+      }
+    }
+  }
+  const reminders = parsed.data[STORAGE_KEYS.reminders];
+  if (reminders !== undefined) {
+    if (!Array.isArray(reminders)) {
+      errors.push("喂奶提醒格式错误");
+    } else {
+      for (const reminder of reminders) {
+        if (!reminder.id || !reminder.mode) {
+          errors.push("存在无效的喂奶提醒");
+          break;
+        }
+      }
+    }
+  }
+  return errors;
+}
+
+function triggerFileDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  setTimeout(() => {
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
+async function exportData() {
+  try {
+    const profile = loadProfile();
+    const exportProfile = { ...profile };
+    delete exportProfile.backgroundMediaType;
+    delete exportProfile.backgroundMediaName;
+
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        [STORAGE_KEYS.records]: loadArray(STORAGE_KEYS.records),
+        [STORAGE_KEYS.reminders]: loadArray(STORAGE_KEYS.reminders),
+        [STORAGE_KEYS.soundEnabled]: localStorage.getItem(STORAGE_KEYS.soundEnabled) ?? "true",
+        [STORAGE_KEYS.reminderAppEnabled]: localStorage.getItem(STORAGE_KEYS.reminderAppEnabled) ?? "false",
+        [STORAGE_KEYS.babyProfile]: exportProfile,
+        [STORAGE_KEYS.cardOpacity]: localStorage.getItem(STORAGE_KEYS.cardOpacity) ?? "42",
+        [STORAGE_KEYS.theme]: localStorage.getItem(STORAGE_KEYS.theme) ?? "system",
+      },
+    };
+
+    try {
+      const media = await getBabyMedia();
+      if (media && media.blob) {
+        const buffer = await media.blob.arrayBuffer();
+        const base64 = arrayBufferToBase64(buffer);
+        payload.data["momBaby.media.v1"] = {
+          key: babyBackgroundKey,
+          data: base64,
+          type: media.type || "image/png",
+          name: media.name || "background",
+        };
+      }
+    } catch {
+      // IndexedDB media is optional
+    }
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const filename = "momBaby-backup-" + dateKey(new Date()) + ".json";
+    triggerFileDownload(blob, filename);
+    showToast("数据导出成功");
+  } catch (error) {
+    showToast("导出失败: " + error.message);
+  }
+}
+
+async function importData(file) {
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const errors = validateImportData(parsed);
+    if (errors.length > 0) {
+      showToast("导入失败: " + errors[0]);
+      return;
+    }
+
+    if (!window.confirm("导入数据将覆盖当前所有记录、提醒和设置。\n继续吗？")) return;
+
+    const { data } = parsed;
+
+    if (data[STORAGE_KEYS.records] !== undefined) {
+      saveArray(STORAGE_KEYS.records, data[STORAGE_KEYS.records]);
+    }
+    if (data[STORAGE_KEYS.reminders] !== undefined) {
+      saveArray(STORAGE_KEYS.reminders, data[STORAGE_KEYS.reminders]);
+    }
+    if (data[STORAGE_KEYS.soundEnabled] !== undefined) {
+      localStorage.setItem(STORAGE_KEYS.soundEnabled, data[STORAGE_KEYS.soundEnabled]);
+    }
+    if (data[STORAGE_KEYS.reminderAppEnabled] !== undefined) {
+      localStorage.setItem(STORAGE_KEYS.reminderAppEnabled, data[STORAGE_KEYS.reminderAppEnabled]);
+    }
+    if (data[STORAGE_KEYS.babyProfile] !== undefined) {
+      localStorage.setItem(STORAGE_KEYS.babyProfile, JSON.stringify(data[STORAGE_KEYS.babyProfile]));
+    }
+    if (data[STORAGE_KEYS.cardOpacity] !== undefined) {
+      localStorage.setItem(STORAGE_KEYS.cardOpacity, data[STORAGE_KEYS.cardOpacity]);
+    }
+    if (data[STORAGE_KEYS.theme] !== undefined) {
+      localStorage.setItem(STORAGE_KEYS.theme, data[STORAGE_KEYS.theme]);
+    }
+
+    if (data["momBaby.media.v1"]) {
+      try {
+        const mediaData = data["momBaby.media.v1"];
+        const binaryString = atob(mediaData.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: mediaData.type || "image/png" });
+        const mediaFile = new File([blob], mediaData.name || "background", {
+          type: mediaData.type || "image/png",
+        });
+        await saveBabyMedia(mediaFile);
+      } catch {
+        showToast("数据已导入，但背景照片恢复失败");
+      }
+    }
+
+    state.records = loadArray(STORAGE_KEYS.records);
+    state.reminders = loadArray(STORAGE_KEYS.reminders);
+    state.soundEnabled = loadBool(STORAGE_KEYS.soundEnabled, true);
+    state.reminderAppEnabled = loadBool(STORAGE_KEYS.reminderAppEnabled, false);
+    state.babyProfile = loadProfile();
+    state.cardOpacity = loadNumber(STORAGE_KEYS.cardOpacity, cardOpacityRange.defaultValue, cardOpacityRange.min, cardOpacityRange.max);
+    state.theme = loadTheme();
+    applyTheme(state.theme);
+    applyCardOpacity(state.cardOpacity);
+    closeProfileSheet();
+    await hydrateBabyBackground();
+    render();
+    showToast("数据导入完成");
+  } catch (error) {
+    showToast("导入失败: " + error.message);
+  }
 }

@@ -2670,3 +2670,37 @@ h2 {
     font-size: 12px;
   }
 }
+
+/* --- Data management section within profile sheet --- */
+
+.profile-section-divider {
+  height: 1px;
+  margin: 16px 0 14px;
+  background: var(--glass-line);
+}
+
+.data-management {
+  margin-bottom: 6px;
+}
+
+.data-management .panel-title-row {
+  margin-bottom: 8px;
+}
+
+.data-management-hint {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.data-management-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.data-management-buttons .secondary-button {
+  min-height: 44px;
+}
