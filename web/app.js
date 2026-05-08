@@ -1219,8 +1219,9 @@ function renderGuideList(items) {
 }
 
 function buildFeedingAnalysis() {
+  const todayKey = dateKey(state.now);
   const days = getRecentDayKeys(analysisWindowDays).map((key) => buildHistoryDay(key));
-  const dataDays = days.filter((day) => day.count > 0);
+  const dataDays = days.filter((day) => day.count > 0 && day.key !== todayKey);
   const records = sortRecords(dataDays.flatMap((day) => day.records));
   const ageMonths = state.babyProfile.ageMonths === "" ? "" : Number(state.babyProfile.ageMonths);
   const reference = getFeedingAnalysisReference(ageMonths);
