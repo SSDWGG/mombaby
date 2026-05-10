@@ -1,16 +1,16 @@
 # 沐奶时光
 
-母婴喂奶记录 iOS App，基于 SwiftUI 原生壳 + `WKWebView` 加载内置 `web/` 页面资源。同时支持 Web 端在线访问。
+母婴喂奶记录 iOS App，基于 SwiftUI 原生壳 + `WKWebView` 加载内置 `web/` 页面资源。
 
-## 在线预览
+## 项目介绍页
+
+三端同步部署的项目落地页，由 GitHub Actions 在每次推送 `main` 分支后自动更新：
 
 | 端点 | 地址 |
 |------|------|
-| VPS 主域名 | [https://mombaby.ssdwgg.site](https://mombaby.ssdwgg.site) |
-| VPS 备域名 | [https://mombaby.aiwgg.cn](https://mombaby.aiwgg.cn) |
+| VPS 主域名 (HTTPS) | [https://mombaby.ssdwgg.site](https://mombaby.ssdwgg.site) |
+| VPS 备域名 (HTTPS) | [https://mombaby.aiwgg.cn](https://mombaby.aiwgg.cn) |
 | GitHub Pages | [https://ssdwgg.github.io/mombaby](https://ssdwgg.github.io/mombaby) |
-
-> 三端均由 GitHub Actions 自动部署，每次推送 `main` 分支后自动更新。
 
 ## 当前版本
 

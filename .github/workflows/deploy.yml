@@ -14,7 +14,7 @@ jobs:
           sudo apt-get install -y sshpass
           sshpass -p "${{ secrets.SSH_PASSWORD }}" rsync -az --delete \
             -e "ssh -o StrictHostKeyChecking=accept-new" \
-            web/ \
+            docs/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/www/wwwroot/ryw-yun-project/momBaby/
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=accept-new \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
@@ -26,9 +26,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Create 404.html for SPA routing
-        run: cp web/index.html web/404.html
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./web
+          publish_dir: ./docs
