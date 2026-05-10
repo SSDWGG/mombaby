@@ -1,8 +1,16 @@
 # 沐奶时光
 
-一个本地运行的 iOS 母婴喂奶记录 App。当前项目只保留一套 App 方案：SwiftUI 原生壳 + `WKWebView` 加载 App 内置的 `web/` 页面资源，不依赖 Expo development server。
+母婴喂奶记录 iOS App，基于 SwiftUI 原生壳 + `WKWebView` 加载内置 `web/` 页面资源。同时支持 Web 端在线访问。
 
-> 🌐 **项目介绍页**：[ssdwgg.github.io/mombaby](https://ssdwgg.github.io/mombaby/)
+## 在线预览
+
+| 端点 | 地址 |
+|------|------|
+| VPS 主域名 | [https://mombaby.ssdwgg.site](https://mombaby.ssdwgg.site) |
+| VPS 备域名 | [https://mombaby.aiwgg.cn](https://mombaby.aiwgg.cn) |
+| GitHub Pages | [https://ssdwgg.github.io/mombaby](https://ssdwgg.github.io/mombaby) |
+
+> 三端均由 GitHub Actions 自动部署，每次推送 `main` 分支后自动更新。
 
 ## 当前版本
 
@@ -17,7 +25,7 @@
 - 设置每日定点喂奶提醒，提醒内容包含建议奶量。
 - 设置单次倒计时喂奶提醒，提醒内容包含建议奶量。
 - 可选择额外写入 iOS 提醒事项 App，作为系统提醒事项任务。
-- 喂奶记录和提醒配置保存在手机本地。3
+- 喂奶记录和提醒配置保存在手机本地。
 - 根据 0-30 月龄和性别展示身高体重参考、喂养奶量建议、行为表现和养育经验。
 - 支持导出全部数据为 JSON 备份文件，换手机时一键导入恢复。
 
